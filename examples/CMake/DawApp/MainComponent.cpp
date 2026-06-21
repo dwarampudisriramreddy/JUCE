@@ -127,29 +127,32 @@ void MainComponent::togglePlayback()
 
 void MainComponent::exportMidi()
 {
-    juce::FileChooser chooser ("Export MIDI",
-                                juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                                    .getChildFile ("composition.mid"),
-                                "*.mid");
+    auto chooser = std::make_shared<juce::FileChooser> ("Export MIDI",
+        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+            .getChildFile ("composition.mid"),
+        "*.mid");
 
-    if (chooser.browseForFileToSave (true))
+    auto flags = juce::FileBrowserComponent::saveMode
+               | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    chooser->launchAsync (flags, [this, chooser] (const juce::FileChooser&)
     {
-        auto file = chooser.getResult();
+        auto file = chooser->getResult();
+        if (file == juce::File{})
+            return;
+
         juce::MidiFile midiFile;
         double ppq = PPQ;
         midiFile.setTicksPerQuarterNote ((int) ppq);
 
         juce::MidiMessageSequence melodyTrack, chordTrack, drumTrack;
 
-        // Add tempo event
         int tempo = bpmEditor.getText().getIntValue();
         auto tempoMeta = juce::MidiMessage::tempoMetaEvent (60000000 / tempo);
         melodyTrack.addEvent (tempoMeta, 0);
 
-        // Export melody notes
         int totalSteps = melodyRoll.getTotalSteps();
         for (int row = 0; row < 12; ++row)
-        {
             for (int step = 0; step < totalSteps; ++step)
             {
                 auto& note = midiEngine.getMelodyStep (row, step);
@@ -161,15 +164,12 @@ void MainComponent::exportMidi()
                     melodyTrack.addEvent (offMsg, note.startTick + note.durationTicks);
                 }
             }
-        }
 
-        // Export chord track
         auto& chordGrid = chordRoll.getChordGrid();
         for (int row = 0; row < (int) chordGrid.size(); ++row)
-        {
-            for (int step = 0; step < (int) chordGrid[row].size() && step < totalSteps; ++step)
+            for (int step = 0; step < (int) chordGrid[(size_t) row].size() && step < totalSteps; ++step)
             {
-                auto& cell = chordGrid[row][step];
+                auto& cell = chordGrid[(size_t) row][(size_t) step];
                 if (cell.active && ! cell.isContinuation)
                 {
                     auto intervals = MusicTheoryEngine::getChordIntervals (cell.chordSymbol);
@@ -190,14 +190,10 @@ void MainComponent::exportMidi()
                     }
                 }
             }
-        }
 
-        // Export drums
         static const int drumNotes[] = { 36, 38, 42, 46, 39, 48, 47, 45, 37 };
         for (int drum = 0; drum < 9; ++drum)
-        {
             for (int step = 0; step < totalSteps; ++step)
-            {
                 if (midiEngine.getDrumStep (drum, step))
                 {
                     int tick = step * (PPQ / 4);
@@ -206,8 +202,6 @@ void MainComponent::exportMidi()
                     drumTrack.addEvent (onMsg, tick);
                     drumTrack.addEvent (offMsg, tick + (PPQ / 8));
                 }
-            }
-        }
 
         melodyTrack.sort();
         chordTrack.sort();
@@ -220,7 +214,7 @@ void MainComponent::exportMidi()
         juce::FileOutputStream out (file);
         if (out.openedOk())
             midiFile.writeTo (out);
-    }
+    });
 }
 
 void MainComponent::paint (juce::Graphics& g)
