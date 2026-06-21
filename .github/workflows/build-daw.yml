@@ -38,7 +38,7 @@ jobs:
       - name: Locate built binary
         id: find-binary
         run: |
-          BINARY=$(find build -name DawAppExample -type f -executable 2>/dev/null | head -1)
+          BINARY=$(find build -name "Music Theory DAW" -type f -executable 2>/dev/null | head -1)
           if [ -z "$BINARY" ]; then
             echo "Binary not found!" >&2
             exit 1
