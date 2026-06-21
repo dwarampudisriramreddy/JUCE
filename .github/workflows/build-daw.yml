@@ -61,6 +61,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install host dependencies (for juceaide bootstrapping)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
