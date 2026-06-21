@@ -66,13 +66,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake \
+            pkg-config \
             libx11-dev \
             libxrandr-dev \
             libxinerama-dev \
             libxcursor-dev \
             libfreetype-dev \
+            libfontconfig-dev \
             libasound2-dev \
             libcurl4-openssl-dev
+
+      - name: Debug pkg-config and freetype
+        run: |
+          pkg-config --exists freetype2 && echo "freetype2 found" || echo "freetype2 NOT found"
+          pkg-config --cflags freetype2
+          pkg-config --variable pc_path pkg-config
+          find /usr -name "freetype2.pc" 2>/dev/null
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          echo "PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR"
+          echo "PKG_CONFIG=$PKG_CONFIG"
 
       - name: Set up Java
         uses: actions/setup-java@v4
