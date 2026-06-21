@@ -132,10 +132,10 @@ void MainComponent::exportMidi()
             .getChildFile ("composition.mid"),
         "*.mid");
 
-    auto flags = juce::FileBrowserComponent::saveMode
-               | juce::FileBrowserComponent::warnAboutOverwriting;
+    auto chooserFlags = juce::FileBrowserComponent::saveMode
+                       | juce::FileBrowserComponent::warnAboutOverwriting;
 
-    chooser->launchAsync (flags, [this, chooser] (const juce::FileChooser&)
+    chooser->launchAsync (chooserFlags, [this, chooser] (const juce::FileChooser&)
     {
         auto file = chooser->getResult();
         if (file == juce::File{})
