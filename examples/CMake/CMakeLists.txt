@@ -21,4 +21,5 @@
 
 add_subdirectory(AudioPlugin)
 add_subdirectory(ConsoleApp)
+add_subdirectory(DawApp)
 add_subdirectory(GuiApp)
