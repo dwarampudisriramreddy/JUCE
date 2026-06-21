@@ -8,8 +8,8 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    name: Build DawApp
+  linux:
+    name: Linux Desktop
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -50,4 +50,63 @@ jobs:
         with:
           name: DawAppExample-Linux
           path: ${{ steps.find-binary.outputs.path }}
+          if-no-files-found: error
+
+  android:
+    name: Android arm64-v8a
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Locate Android NDK
+        id: ndk
+        run: |
+          NDK=$(ls -d /usr/local/lib/android/sdk/ndk/* 2>/dev/null | sort -V | tail -1)
+          if [ -z "$NDK" ]; then
+            # fallback: try ANDROID_NDK_HOME
+            NDK="$ANDROID_NDK_HOME"
+          fi
+          if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+            echo "NDK not found!" >&2
+            exit 1
+          fi
+          echo "path=$NDK" >> "$GITHUB_OUTPUT"
+
+      - name: Configure CMake for Android
+        run: |
+          cmake -S examples/CMake/DawApp -B build-android \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_SYSTEM_NAME=Android \
+            -DCMAKE_ANDROID_NDK=${{ steps.ndk.outputs.path }} \
+            -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
+            -DCMAKE_ANDROID_STL_TYPE=c++_shared \
+            -DCMAKE_ANDROID_API=26
+
+      - name: Build DawAppExample for Android
+        run: cmake --build build-android --target DawAppExample -j$(nproc)
+
+      - name: Locate built library
+        id: find-lib
+        run: |
+          LIB=$(find build-android -name "libDawAppExample.so" -type f 2>/dev/null | head -1)
+          if [ -z "$LIB" ]; then
+            echo "Library not found!" >&2
+            exit 1
+          fi
+          echo "path=$LIB" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android native library
+        uses: actions/upload-artifact@v4
+        with:
+          name: DawAppExample-Android-arm64-v8a
+          path: ${{ steps.find-lib.outputs.path }}
           if-no-files-found: error
