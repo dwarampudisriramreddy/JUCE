@@ -6,6 +6,11 @@ add_subdirectory(../../.. JUCE)
 juce_add_gui_app(DawAppExample
     PRODUCT_NAME "Music Theory DAW")
 
+target_compile_definitions(DawAppExample
+    PUBLIC
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0)
+
 target_sources(DawAppExample
     PRIVATE
         Main.cpp
