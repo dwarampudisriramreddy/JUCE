@@ -163,10 +163,10 @@ void PianoRollComponent::startNote (int row, int col)
     {
         if ((int) chordGrid.size() <= row)
             chordGrid.resize (row + 1);
-        if ((int) chordGrid[row].size() <= totalSteps)
-            chordGrid[row].resize (totalSteps);
+        if ((int) chordGrid[(size_t) row].size() <= totalSteps)
+            chordGrid[(size_t) row].resize ((size_t) totalSteps);
 
-        auto& cell = chordGrid[row][col];
+        auto& cell = chordGrid[(size_t) row][(size_t) col];
         if (cell.active)
         {
             cell.active = false;
@@ -333,7 +333,6 @@ void PianoRollComponent::paint (juce::Graphics& g)
     for (int row = 0; row < visibleRows; ++row)
     {
         bool whiteBg = isChordRoll || rows[row].isWhiteKey;
-        bool inScale = isChordRoll || rows[row].inScale;
 
         for (int col = 0; col < totalSteps; ++col)
         {

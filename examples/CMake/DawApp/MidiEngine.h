@@ -71,6 +71,11 @@ public:
     void pitchWheelMoved (int) override {}
     void controllerMoved (int, int) override {}
 
+    void renderNextBlock (juce::AudioBuffer<double>& outputBuffer, int startSample, int numSamples) override
+    {
+        juce::ignoreUnused (outputBuffer, startSample, numSamples);
+    }
+
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {
         if (angleDelta <= 0.0)
@@ -120,7 +125,7 @@ private:
 class DrumVoice final : public juce::SynthesiserVoice
 {
 public:
-    DrumVoice (int drumNote) : drumNote (drumNote) {}
+    DrumVoice (int note) : drumNote (note) {}
 
     bool canPlaySound (juce::SynthesiserSound* s) override
     {
@@ -189,6 +194,11 @@ public:
 
     void pitchWheelMoved (int) override {}
     void controllerMoved (int, int) override {}
+
+    void renderNextBlock (juce::AudioBuffer<double>& outputBuffer, int startSample, int numSamples) override
+    {
+        juce::ignoreUnused (outputBuffer, startSample, numSamples);
+    }
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {

@@ -56,7 +56,6 @@ public:
         for (auto interval : intervals)
             info.noteNames.add (getNoteNames()[(keyIndex + interval) % 12]);
 
-        bool isMajorFamily = (scaleType == "Major" || scaleType == "Mixolydian" || scaleType == "Dorian");
         juce::Array<juce::String> romanNumerals = { "I", "II", "III", "IV", "V", "VI", "VII" };
 
         for (int i = 0; i < info.noteNames.size(); ++i)
