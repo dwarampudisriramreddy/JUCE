@@ -21,6 +21,10 @@ target_sources(DawAppExample
         DrumSequencerComponent.cpp
         ChordPaletteComponent.cpp)
 
+if(CMAKE_SYSTEM_NAME STREQUAL Android)
+    set_target_properties(DawAppExample PROPERTIES OUTPUT_NAME "juce_jni")
+endif()
+
 target_link_libraries(DawAppExample
     PRIVATE
         juce::juce_gui_basics

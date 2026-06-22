@@ -7,14 +7,13 @@ MainComponent::MainComponent()
 {
     setSize (1200, 800);
 
+    midiEngine.formatManager.registerBasicFormats();
     setupControls();
 
     chordPalette.onChordSelected = [this] (const ChordInfo&) {};
 
     chordRoll.onNoteAdded = [this] (int, int, int) {};
-
     melodyRoll.onNoteAdded = [this] (int, int, int) {};
-
     melodyRoll.onNoteDragged = [this] (int, int, int) {};
 
     midiEngine.onPlaybackStopped = [this]
@@ -55,6 +54,15 @@ void MainComponent::setupControls()
             midiEngine.setBpm (bpm);
     };
 
+    // Oscillator type
+    addAndMakeVisible (oscTypeSelector);
+    oscTypeSelector.addItem ("Sine", 1);
+    oscTypeSelector.addItem ("Saw", 2);
+    oscTypeSelector.addItem ("Square", 3);
+    oscTypeSelector.addItem ("Triangle", 4);
+    oscTypeSelector.setSelectedItemIndex (3);
+    oscTypeSelector.onChange = [this] { updateOscType(); };
+
     addAndMakeVisible (trackSelector);
     trackSelector.addItem ("All", 1);
     trackSelector.addItem ("Chords", 2);
@@ -67,6 +75,9 @@ void MainComponent::setupControls()
     addAndMakeVisible (clearButton);
     addAndMakeVisible (addBarButton);
     addAndMakeVisible (exportButton);
+    addAndMakeVisible (importButton);
+    addAndMakeVisible (recordButton);
+    addAndMakeVisible (themeButton);
     addAndMakeVisible (theoryLabel);
 
     playButton.onClick = [this] { togglePlayback(); };
@@ -74,11 +85,61 @@ void MainComponent::setupControls()
     clearButton.onClick = [this] { clearAll(); };
     addBarButton.onClick = [this] { chordRoll.addBars(); melodyRoll.addBars(); drumSequencer.setTotalSteps (melodyRoll.getTotalSteps()); };
     exportButton.onClick = [this] { exportMidi(); };
+    importButton.onClick = [this] { importMidi(); };
+    recordButton.onClick = [this] { toggleRecording(); };
+    themeButton.onClick = [this] { toggleTheme(); };
+
+    // Volume sliders
+    for (auto* s : { &melodyVolSlider, &chordVolSlider, &drumVolSlider })
+    {
+        addAndMakeVisible (s);
+        s->setSliderStyle (juce::Slider::LinearBar);
+        s->setRange (0.0, 1.0, 0.01);
+        s->setValue (0.8);
+        s->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+    }
+    melodyVolSlider.setValue (0.8);
+    chordVolSlider.setValue (0.7);
+    drumVolSlider.setValue (0.75);
+
+    melodyVolSlider.onValueChange = [this] { midiEngine.setMelodyVolume ((float) melodyVolSlider.getValue()); };
+    chordVolSlider.onValueChange = [this] { midiEngine.setChordVolume ((float) chordVolSlider.getValue()); };
+    drumVolSlider.onValueChange = [this] { midiEngine.setDrumVolume ((float) drumVolSlider.getValue()); };
+
+    // Octave controls
+    addAndMakeVisible (octDownButton);
+    addAndMakeVisible (octUpButton);
+    addAndMakeVisible (octLabel);
+    octLabel.setText ("Oct 4", juce::dontSendNotification);
+    octLabel.setJustificationType (juce::Justification::centred);
+
+    octDownButton.onClick = [this]
+    {
+        if (melodyOctave > 2) { melodyOctave--; octLabel.setText ("Oct " + juce::String (melodyOctave), juce::dontSendNotification); melodyRoll.setOctave (melodyOctave); }
+    };
+    octUpButton.onClick = [this]
+    {
+        if (melodyOctave < 6) { melodyOctave++; octLabel.setText ("Oct " + juce::String (melodyOctave), juce::dontSendNotification); melodyRoll.setOctave (melodyOctave); }
+    };
 
     addAndMakeVisible (chordPalette);
     addAndMakeVisible (chordRoll);
     addAndMakeVisible (melodyRoll);
     addAndMakeVisible (drumSequencer);
+}
+
+void MainComponent::updateOscType()
+{
+    OscType t = OscType::triangle;
+    switch (oscTypeSelector.getSelectedItemIndex())
+    {
+        case 0: t = OscType::sine; break;
+        case 1: t = OscType::saw; break;
+        case 2: t = OscType::square; break;
+        case 3: t = OscType::triangle; break;
+    }
+    for (auto* v : midiEngine.synthVoices)
+        v->setOscType (t);
 }
 
 void MainComponent::updateKeyAndScale()
@@ -121,8 +182,95 @@ void MainComponent::togglePlayback()
             midiEngine.setBpm (bpm);
         midiEngine.setTotalSteps (melodyRoll.getTotalSteps());
         midiEngine.play();
-        playButton.setButtonText ("Playing...");
+        playButton.setButtonText ("Stop");
     }
+}
+
+void MainComponent::importMidi()
+{
+    auto chooser = std::make_shared<juce::FileChooser> ("Import MIDI",
+        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+        "*.mid;*.midi");
+
+    auto chooserFlags = juce::FileBrowserComponent::openMode
+                       | juce::FileBrowserComponent::canSelectFiles;
+
+    chooser->launchAsync (chooserFlags, [this, chooser] (const juce::FileChooser&)
+    {
+        auto file = chooser->getResult();
+        if (file == juce::File{}) return;
+
+        juce::FileInputStream stream (file);
+        if (stream.openedOk())
+        {
+            juce::MidiFile midiFile;
+            if (midiFile.readFrom (stream))
+            {
+                midiEngine.importFromMidi (midiFile);
+                chordRoll.setTotalSteps (midiEngine.getTotalTicks() / (PPQ / 4));
+                melodyRoll.setTotalSteps (midiEngine.getTotalTicks() / (PPQ / 4));
+                drumSequencer.setTotalSteps (midiEngine.getTotalTicks() / (PPQ / 4));
+                repaint();
+            }
+        }
+    });
+}
+
+void MainComponent::toggleRecording()
+{
+    if (midiEngine.isRecording())
+    {
+        midiEngine.stopRecording();
+        recordButton.setButtonText ("Record");
+    }
+    else
+    {
+        auto chooser = std::make_shared<juce::FileChooser> ("Save Recording",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                .getChildFile ("recording.wav"),
+            "*.wav");
+
+        auto chooserFlags = juce::FileBrowserComponent::saveMode
+                           | juce::FileBrowserComponent::warnAboutOverwriting;
+
+        chooser->launchAsync (chooserFlags, [this, chooser] (const juce::FileChooser&)
+        {
+            auto file = chooser->getResult();
+            if (file == juce::File{}) return;
+
+            midiEngine.startRecording (file);
+            recordButton.setButtonText ("Stop Rec");
+        });
+    }
+}
+
+void MainComponent::toggleTheme()
+{
+    isDarkTheme = ! isDarkTheme;
+    themeButton.setButtonText (isDarkTheme ? "Dark" : "Light");
+
+    if (isDarkTheme)
+    {
+        getLookAndFeel().setColour (juce::ResizableWindow::backgroundColourId, juce::Colour (0xff1a1a2e));
+        getLookAndFeel().setColour (juce::Label::textColourId, juce::Colour (0xffe0e0e0));
+        getLookAndFeel().setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff2d2d44));
+        getLookAndFeel().setColour (juce::TextEditor::textColourId, juce::Colour (0xffe0e0e0));
+        getLookAndFeel().setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour (0xff667eea));
+        getLookAndFeel().setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff2d2d44));
+        getLookAndFeel().setColour (juce::PopupMenu::textColourId, juce::Colour (0xffe0e0e0));
+    }
+    else
+    {
+        getLookAndFeel().setColour (juce::ResizableWindow::backgroundColourId, juce::Colour (0xfff0f0f0));
+        getLookAndFeel().setColour (juce::Label::textColourId, juce::Colour (0xff333333));
+        getLookAndFeel().setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xffffffff));
+        getLookAndFeel().setColour (juce::TextEditor::textColourId, juce::Colour (0xff333333));
+        getLookAndFeel().setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour (0xff667eea));
+        getLookAndFeel().setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xffffffff));
+        getLookAndFeel().setColour (juce::PopupMenu::textColourId, juce::Colour (0xff333333));
+    }
+
+    repaint();
 }
 
 void MainComponent::exportMidi()
@@ -138,8 +286,7 @@ void MainComponent::exportMidi()
     chooser->launchAsync (chooserFlags, [this, chooser] (const juce::FileChooser&)
     {
         auto file = chooser->getResult();
-        if (file == juce::File{})
-            return;
+        if (file == juce::File{}) return;
 
         juce::MidiFile midiFile;
         double ppq = PPQ;
@@ -226,50 +373,79 @@ void MainComponent::paint (juce::Graphics& g)
 void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
-    auto header = bounds.removeFromTop (50);
+    int margin = 4;
 
-    auto tools = bounds.removeFromTop (40);
-    const int margin = 4;
-
-    // Header controls
+    // --- Header row ---
+    auto header = bounds.removeFromTop (44);
     auto headerArea = header.reduced (margin);
-    const int comboW = 120;
 
-    keySelector.setBounds (headerArea.removeFromLeft (comboW));
+    keySelector.setBounds (headerArea.removeFromLeft (100));
     headerArea.removeFromLeft (margin);
-    scaleSelector.setBounds (headerArea.removeFromLeft (comboW));
+    scaleSelector.setBounds (headerArea.removeFromLeft (100));
     headerArea.removeFromLeft (margin);
 
-    auto bpmLabel = headerArea.removeFromLeft (40);
-    bpmEditor.setBounds (headerArea.removeFromLeft (60));
+    auto bpmLabel = headerArea.removeFromLeft (36);
+    bpmEditor.setBounds (headerArea.removeFromLeft (52));
+    headerArea.removeFromLeft (margin);
+
+    oscTypeSelector.setBounds (headerArea.removeFromLeft (90));
     headerArea.removeFromLeft (margin);
 
     theoryLabel.setBounds (headerArea.removeFromLeft (headerArea.getWidth() / 2));
 
-    // Tool buttons
+    // --- Tool bar ---
+    auto tools = bounds.removeFromTop (36);
     auto toolArea = tools.reduced (margin);
-    playButton.setBounds (toolArea.removeFromLeft (80));
-    toolArea.removeFromLeft (margin);
-    stopButton.setBounds (toolArea.removeFromLeft (80));
-    toolArea.removeFromLeft (margin);
-    clearButton.setBounds (toolArea.removeFromLeft (90));
-    toolArea.removeFromLeft (margin);
-    addBarButton.setBounds (toolArea.removeFromLeft (90));
-    toolArea.removeFromLeft (margin);
-    exportButton.setBounds (toolArea.removeFromLeft (100));
-    toolArea.removeFromLeft (margin);
-    trackSelector.setBounds (toolArea.removeFromLeft (120));
 
-    // Remaining space split into vertical sections
+    playButton.setBounds (toolArea.removeFromLeft (70));
+    toolArea.removeFromLeft (margin);
+    stopButton.setBounds (toolArea.removeFromLeft (70));
+    toolArea.removeFromLeft (margin);
+    clearButton.setBounds (toolArea.removeFromLeft (70));
+    toolArea.removeFromLeft (margin);
+    addBarButton.setBounds (toolArea.removeFromLeft (60));
+    toolArea.removeFromLeft (margin);
+    exportButton.setBounds (toolArea.removeFromLeft (80));
+    toolArea.removeFromLeft (margin);
+    importButton.setBounds (toolArea.removeFromLeft (100));
+    toolArea.removeFromLeft (margin);
+    recordButton.setBounds (toolArea.removeFromLeft (80));
+    toolArea.removeFromLeft (margin);
+    themeButton.setBounds (toolArea.removeFromLeft (65));
+    toolArea.removeFromLeft (margin);
+    trackSelector.setBounds (toolArea.removeFromLeft (90));
+
+    // --- Volume bar ---
+    auto volBar = bounds.removeFromTop (24);
+    auto volArea = volBar.reduced (margin);
+
+    auto volLabelWidth = 48;
+    auto volWidth = 100;
+
+    auto melVolLabel = volArea.removeFromLeft (volLabelWidth);
+    melodyVolSlider.setBounds (volArea.removeFromLeft (volWidth));
+    volArea.removeFromLeft (margin * 2);
+    auto chordVolLabel = volArea.removeFromLeft (volLabelWidth);
+    chordVolSlider.setBounds (volArea.removeFromLeft (volWidth));
+    volArea.removeFromLeft (margin * 2);
+    auto drumVolLabel = volArea.removeFromLeft (volLabelWidth);
+    drumVolSlider.setBounds (volArea.removeFromLeft (volWidth));
+
+    volArea.removeFromLeft (margin * 4);
+    octDownButton.setBounds (volArea.removeFromLeft (30));
+    octLabel.setBounds (volArea.removeFromLeft (50));
+    octUpButton.setBounds (volArea.removeFromLeft (30));
+
+    // --- Panels ---
     auto remaining = bounds.reduced (margin);
 
-    auto chordPaletteArea = remaining.removeFromTop (56);
+    auto chordPaletteArea = remaining.removeFromTop (52);
     chordPalette.setBounds (chordPaletteArea);
 
-    auto chordRollArea = remaining.removeFromTop (200);
+    auto chordRollArea = remaining.removeFromTop (170);
     chordRoll.setBounds (chordRollArea);
 
-    auto melodyArea = remaining.removeFromTop (300);
+    auto melodyArea = remaining.removeFromTop (260);
     melodyRoll.setBounds (melodyArea);
 
     auto drumArea = remaining;

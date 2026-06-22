@@ -80,25 +80,25 @@ void PianoRollComponent::updateRows()
         return;
     }
 
-    struct NoteDef { juce::String name; bool white; };
-    NoteDef allNotes[] = {
-        { "C5", true }, { "B4", true }, { "Bb4", false },
-        { "A4", true }, { "Ab4", false }, { "G4", true },
-        { "F#4", false }, { "F4", true }, { "E4", true },
-        { "Eb4", false }, { "D4", true }, { "C#4", false }
-    };
+    // Build note rows for the current octave range (octave to octave+1)
+    static const int semiLayout[] = { 0, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    static const char* noteNames[] = { "C", "B", "Bb", "A", "Ab", "G", "F#", "F", "E", "Eb", "D", "C#" };
+    static const bool whiteKeys[] = { true, true, false, true, false, true, false, true, true, false, true, false };
 
     auto& notes = MusicTheoryEngine::getNoteNames();
 
-    for (auto& nd : allNotes)
+    for (int i = 0; i < 12; ++i)
     {
+        int semi = semiLayout[i];
+        int noteOctave = octave + (semi < 5 ? 0 : 1);
+        // Build display name like "C5", "B4", etc.
+        juce::String n = noteNames[i];
+        n += juce::String (noteOctave);
         RowInfo r;
-        r.name = nd.name;
-        auto noteBase = nd.name.upToFirstOccurrenceOf ("5", false, false)
-                            .upToFirstOccurrenceOf ("4", false, false);
-        r.chromaticIndex = notes.indexOf (noteBase);
+        r.name = n;
+        r.chromaticIndex = notes.indexOf (noteNames[i]);
         if (r.chromaticIndex < 0) r.chromaticIndex = 0;
-        r.isWhiteKey = nd.white;
+        r.isWhiteKey = whiteKeys[i];
 
         if (scaleInfo.noteNames.size() > 0)
         {
@@ -197,9 +197,9 @@ void PianoRollComponent::startNote (int row, int col)
     }
     else
     {
-        auto noteBase = rows[row].name.upToFirstOccurrenceOf ("5", false, false)
-                                     .upToFirstOccurrenceOf ("4", false, false);
-        int octave = rows[row].name.contains ("5") ? 5 : 4;
+        auto name = rows[row].name;
+        auto noteBase = name.dropLastCharacters (1);
+        int octave = name.getLastCharacter() - '0';
         note.active = true;
         note.startTick = col * (PPQ / 4);
         note.durationTicks = PPQ / 4;
@@ -254,9 +254,9 @@ void PianoRollComponent::extendNote (int row, int col)
     int end = juce::jmax (drag.startCol, col);
     int len = end - start + 1;
 
-    auto noteBase = rows[row].name.upToFirstOccurrenceOf ("5", false, false)
-                                 .upToFirstOccurrenceOf ("4", false, false);
-    int octave = rows[row].name.contains ("5") ? 5 : 4;
+    auto name = rows[row].name;
+    auto noteBase = name.dropLastCharacters (1);
+    int octave = name.getLastCharacter() - '0';
 
     for (int i = start; i <= end; ++i)
     {

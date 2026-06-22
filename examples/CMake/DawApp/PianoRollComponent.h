@@ -10,6 +10,8 @@ public:
     PianoRollComponent (MidiEngine& engine, bool isChordRoll = false);
 
     void setScaleInfo (const ScaleInfo& info) { scaleInfo = info; updateRows(); repaint(); }
+    void setOctave (int oct) { octave = oct; updateRows(); repaint(); }
+    int getOctave() const { return octave; }
     void setTotalSteps (int steps);
     int getTotalSteps() const { return totalSteps; }
     void addBars (int bars = 1);
@@ -56,6 +58,7 @@ private:
     bool isChordRoll;
     ScaleInfo scaleInfo;
     int totalSteps = 32;
+    int octave = 4;
     int visibleRows = 12;
 
     static constexpr int keyWidth = 70;
