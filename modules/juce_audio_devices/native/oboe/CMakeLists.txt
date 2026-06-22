@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.4.1)
 # e.g. ${OBOE_HOME}/samples/RhythmGame/.externalNativeBuild/cmake/ndkExtractorDebug/x86/oboe-bin)
 project(oboe)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 set (oboe_sources
     src/aaudio/AAudioLoader.cpp
     src/aaudio/AudioStreamAAudio.cpp
