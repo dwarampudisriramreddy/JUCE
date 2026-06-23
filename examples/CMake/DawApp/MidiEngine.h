@@ -674,14 +674,7 @@ private:
             {
                 auto* chanL = bufferToFill.buffer->getWritePointer (0, bufferToFill.startSample);
                 auto* chanR = bufferToFill.buffer->getWritePointer (1, bufferToFill.startSample);
-                for (int s = 0; s < numSamples; ++s)
-                {
-                    float inL = chanL[s];
-                    float inR = chanR[s];
-                    processReverb (inL, inR);
-                    chanL[s] = inL;
-                    chanR[s] = inR;
-                }
+                engine.reverb.processStereo (chanL, chanR, numSamples);
             }
 
             // Capture for recording
@@ -695,11 +688,6 @@ private:
                         *bufferToFill.buffer, ch, bufferToFill.startSample, numSamples);
                 engine.recordSampleCount = newSize;
             }
-        }
-
-        void processReverb (float& l, float& r)
-        {
-            engine.reverb.processStereo (l, r);
         }
 
         MidiEngine& engine;
