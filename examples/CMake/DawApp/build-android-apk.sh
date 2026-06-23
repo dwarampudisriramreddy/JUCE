@@ -45,7 +45,8 @@ mkdir -p "$OUTPUT_DIR/app/src/main/res/values"
 mkdir -p "$OUTPUT_DIR/gradle/wrapper"
 
 # Copy the native library (renamed to juce_jni for the Java loader)
-cp "$BUILD_DIR/libDawAppExample.so" "$OUTPUT_DIR/app/src/main/jniLibs/arm64-v8a/libjuce_jni.so"
+# CMake outputs to <target>_artefacts/<config>/lib<output_name>.so
+cp "$BUILD_DIR/DawAppExample_artefacts/Release/libjuce_jni.so" "$OUTPUT_DIR/app/src/main/jniLibs/arm64-v8a/libjuce_jni.so"
 
 # Copy required Java files from JUCE modules
 # The module Java dirs use app/ or init/ prefixes that we strip
