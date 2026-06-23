@@ -23,10 +23,14 @@ if [ -z "$SDK_PATH" ] || [ ! -d "$SDK_PATH" ]; then
 fi
 
 echo "=== Step 1: Build native .so with CMake ==="
+export ANDROID_NDK="$NDK_PATH"
+export ANDROID_NDK_HOME="$NDK_PATH"
+
 cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_SYSTEM_NAME=Android \
     -DCMAKE_ANDROID_NDK="$NDK_PATH" \
+    -DANDROID_NDK="$NDK_PATH" \
     -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
     -DCMAKE_ANDROID_STL_TYPE=c++_shared \
     -DCMAKE_ANDROID_API=30
