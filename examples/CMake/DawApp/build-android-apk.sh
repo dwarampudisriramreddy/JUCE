@@ -48,6 +48,12 @@ mkdir -p "$OUTPUT_DIR/gradle/wrapper"
 # CMake outputs to <target>_artefacts/<config>/lib<output_name>.so
 cp "$BUILD_DIR/DawAppExample_artefacts/Release/libjuce_jni.so" "$OUTPUT_DIR/app/src/main/jniLibs/arm64-v8a/libjuce_jni.so"
 
+# Copy the C++ shared library (required by c++_shared STL)
+CPP_SHARED=$(find "$NDK_PATH" -path "*/aarch64-linux-android/libc++_shared.so" 2>/dev/null | head -1)
+if [ -n "$CPP_SHARED" ]; then
+    cp "$CPP_SHARED" "$OUTPUT_DIR/app/src/main/jniLibs/arm64-v8a/"
+fi
+
 # Copy required Java files from JUCE modules
 # The module Java dirs use app/ or init/ prefixes that we strip
 copy_java() {
