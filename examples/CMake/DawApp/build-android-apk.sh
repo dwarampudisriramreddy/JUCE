@@ -81,6 +81,17 @@ copy_java "juce_gui_basics/native/javaopt"
 copy_java "juce_audio_devices/native/java"
 copy_java "juce_audio_devices/native/javaopt"
 
+# The JuceActivity.java from javaopt declares native methods (appNewIntent, appOnResume)
+# that only exist in C++ when JUCE_PUSH_NOTIFICATIONS_ACTIVITY is defined.
+# Replace them with no-op Java implementations.
+JAVA_ACTIVITY="$OUTPUT_DIR/app/src/main/java/com/rmsl/juce/JuceActivity.java"
+if [ -f "$JAVA_ACTIVITY" ]; then
+    sed -i \
+        -e 's/private native void appNewIntent.*$/private void appNewIntent(Intent intent) {}/' \
+        -e 's/private native void appOnResume.*$/private void appOnResume() {}/' \
+        "$JAVA_ACTIVITY"
+fi
+
 # Generate AndroidManifest.xml
 cat > "$OUTPUT_DIR/app/src/main/AndroidManifest.xml" << 'MANIFEST'
 <?xml version="1.0" encoding="utf-8"?>
